@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package banking;
+
+// A single bank Branch server. Every RPC is served by one Branch and
+// operates only on that Branch's own local SQLite database.
+service BranchService {
+  rpc Deposit(DepositRequest) returns (TransactionResponse);
+  rpc Withdraw(WithdrawRequest) returns (TransactionResponse);
+  rpc Transfer(TransferRequest) returns (TransactionResponse);
+
+  rpc GetAccount(GetAccountRequest) returns (AccountResponse);
+  rpc GetTransactions(GetTransactionsRequest) returns (TransactionListResponse);
+
+  // Called by another Branch after it has already committed a
+  // transaction locally, so this Branch's copy stays in sync.
+  rpc ReplicateTransaction(ReplicateRequest) returns (ReplicateResponse);
+}
+
+message DepositRequest {
+  int64 account_id = 1;
+  int64 amount = 2; // integer cents
+  string transaction_id = 3;
+}
+
+message WithdrawRequest {
+  int64 account_id = 1;
+  int64 amount = 2; // integer cents
+  string transaction_id = 3;
+}
+
+message TransferRequest {
+  int64 from_account = 1;
+  int64 to_account = 2;
+  int64 amount = 3; // integer cents
+  string transaction_id = 4;
+}
+
+message TransactionResponse {
+  string transaction_id = 1;
+  string status = 2; // SUCCESS | FAILED
+  string message = 3;
+  repeated int32 replicated_to = 4;
+  repeated int32 failed_replicas = 5;
+}
+
+message GetAccountRequest {
+  int64 account_id = 1;
+}
+
+message AccountResponse {
+  int64 account_id = 1;
+  int64 balance = 2;
+  string updated_at = 3;
+}
+
+message GetTransactionsRequest {
+  int32 limit = 1;
+}
+
+message Transaction {
+  string transaction_id = 1;
+  string type = 2; // DEPOSIT | WITHDRAW | TRANSFER
+  int64 from_account = 3;
+  int64 to_account = 4;
+  int64 amount = 5;
+  string status = 6; // SUCCESS | FAILED
+  int32 origin_branch = 7;
+  string created_at = 8;
+}
+
+message TransactionListResponse {
+  repeated Transaction transactions = 1;
+}
+
+// Sent from the origin Branch to every other Branch so they can apply
+// the same, already-decided transaction to their own local database.
+message ReplicateRequest {
+  string transaction_id = 1;
+  string type = 2;
+  int64 from_account = 3;
+  int64 to_account = 4;
+  int64 amount = 5;
+  string status = 6;
+  int32 origin_branch = 7;
+}
+
+message ReplicateResponse {
+  bool applied = 1;
+  string message = 2;
+}

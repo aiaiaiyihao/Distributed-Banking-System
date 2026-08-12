@@ -1,0 +1,79 @@
+services:
+  branch1:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python -m backend.branch.server 1
+    environment:
+      BRANCH_ID: "1"
+      BRANCH_1_HOST: branch1
+      BRANCH_2_HOST: branch2
+      BRANCH_3_HOST: branch3
+      DATA_DIR: /app/backend/data
+    ports:
+      - "50051:50051"
+    volumes:
+      - branch1_data:/app/backend/data
+
+  branch2:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python -m backend.branch.server 2
+    environment:
+      BRANCH_ID: "2"
+      BRANCH_1_HOST: branch1
+      BRANCH_2_HOST: branch2
+      BRANCH_3_HOST: branch3
+      DATA_DIR: /app/backend/data
+    ports:
+      - "50052:50052"
+    volumes:
+      - branch2_data:/app/backend/data
+
+  branch3:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: python -m backend.branch.server 3
+    environment:
+      BRANCH_ID: "3"
+      BRANCH_1_HOST: branch1
+      BRANCH_2_HOST: branch2
+      BRANCH_3_HOST: branch3
+      DATA_DIR: /app/backend/data
+    ports:
+      - "50053:50053"
+    volumes:
+      - branch3_data:/app/backend/data
+
+  gateway:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: uvicorn backend.gateway.main:app --host 0.0.0.0 --port 8000
+    environment:
+      BRANCH_1_HOST: branch1
+      BRANCH_2_HOST: branch2
+      BRANCH_3_HOST: branch3
+    ports:
+      - "8000:8000"
+    depends_on:
+      - branch1
+      - branch2
+      - branch3
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - gateway
+
+volumes:
+  branch1_data:
+  branch2_data:
+  branch3_data:
